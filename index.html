@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>智慧银行 动态签名泡泡墙</title>
+  <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body, html {
+          width: 100vw; height: 100vh;
+          overflow: hidden; /* 隐藏滚动条，纯全屏 */
+          font-family: "微软雅黑", sans-serif;
+          background: url(back.png) no-repeat center center fixed;
+          background-size: cover;
+          background-color: #001a33;
+          /* ✅ 核心新增：智慧银行+高科技风格 全屏动态背景 */
+          /*background: linear-gradient(120deg, #001a33, #00284d, #003366);
+          background-size: 200% 200%;
+          animation: bgTechMove 15s ease infinite;
+          !* 科技网点纹理叠加 *!
+          background-image:
+                  radial-gradient(rgba(100, 180, 255, 0.1) 1px, transparent 1px),
+                  linear-gradient(120deg, #001a33, #00284d, #003366);
+          background-position: 0 0;
+          background-repeat: repeat;
+          background-size: 30px 30px, 200% 200%;*/
+      }
+      /* ✅ 动态背景流动动画-高科技光效移动 */
+      @keyframes bgTechMove {
+          0% { background-position: 0% 0%; }
+          50% { background-position: 100% 100%; }
+          100% { background-position: 0% 0%; }
+      }
+
+      /* ✅ 原样式保留：左侧中部签名框 300*200 窄框 */
+      #drawArea {
+          position: fixed;
+          top: 50%; right: 30px;
+          transform: translateY(-50%);
+          width: 300px;
+          height: 200px;
+          background: rgba(255,255,255,0.2);
+          border: 2px solid rgba(100, 180, 255, 0.4);
+          border-radius: 12px;
+          z-index: 10;
+          cursor: crosshair;
+          /* 科技边框光效 */
+          box-shadow: 0 0 15px rgba(100, 180, 255, 0.3);
+      }
+      /* ✅ 原样式保留+科技风优化：按钮样式 */
+      #createBtn {
+          position: fixed;
+          top: calc(50% + 60px);
+          right: 0px;
+          transform: translateX(-50%);
+          padding: 6px 10px;
+          font-size: 12px;
+          background: linear-gradient(45deg, #0066cc, #0099ff);
+          color: white;
+          border: none;
+          border-radius: 50px;
+          cursor: pointer;
+          z-index: 10;
+          touch-action: manipulation;
+          transition: all 0.3s;
+          box-shadow: 0 0 20px rgba(0, 153, 255, 0.5);
+      }
+      #createBtn:hover { background: linear-gradient(45deg, #0052a3, #0080e6); scale: 1.05; box-shadow:0 0 25px rgba(0,153,255,0.7);}
+      #createBtn:active { scale: 0.98; }
+      #clearBtn {
+          position: fixed;
+          top: calc(50% + 60px);
+          right: 250px;
+          transform: translateX(0);
+          padding: 5px 5px;
+          font-size: 12px;
+          background: rgba(100, 120, 150, 0.6);
+          color: white;
+          border: none;
+          border-radius: 50px;
+          cursor: pointer;
+          z-index: 10;
+          touch-action: manipulation;
+          width: 70px;
+          border: 1px solid rgba(100, 180, 255, 0.3);
+      }
+      #clearBtn:hover{background: rgba(100, 120, 150, 0.8);}
+      /* 泡泡容器 - 全屏底层 */
+      #bubbleContainer {
+          position: absolute;
+          top: 0; left: 0;
+          width: 100vw; height: 100vh;
+          pointer-events: none;
+      }
+      /* ✅ 固定尺寸签名泡泡+智慧银行科技风 完美适配签名完整显示 */
+      .bubble {
+          position: absolute;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          font-weight: bold;
+          white-space: nowrap;
+          padding: 8px;
+          border: 2px solid #5DC0F6;
+          background: linear-gradient(45deg, #01070D40,rgba(1, 102, 215, 0.75), rgba(22, 183, 255, 0.6), rgba(115, 200, 250, 0.5));
+          box-shadow: 0 0 25px rgba(0, 153, 255, 0.7), 0 0 10px rgba(255,255,255,0.3) inset;
+          user-select: none;
+          transition: transform 0.1s linear;
+          backdrop-filter: blur(2px);
+          /* ✅ 核心：泡泡宽高固定值，你可以自己改这个尺寸 */
+          width: 100px !important;
+          height: 100px !important;
+          z-index: 999;
+      }
+  </style>
+</head>
+<body>
+<canvas id="drawArea"></canvas>
+<button id="clearBtn">清空签名</button>
+<button id="createBtn">签名完成 ✨</button>
+<div id="bubbleContainer"></div>
+
+<script>
+// ========== 全局变量定义 ==========
+const canvas = document.getElementById('drawArea');
+const ctx = canvas.getContext('2d');
+const createBtn = document.getElementById('createBtn');
+const clearBtn = document.getElementById('clearBtn');
+const bubbleContainer = document.getElementById('bubbleContainer');
+let isDrawing = false;
+let bubbles = [];
+let bubbleId = 0;
+
+// ========== 画布初始化-适配触摸+鼠标 ==========
+function initCanvas() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#ffffff'; // 科技白笔迹 更醒目
+  ctx.fillStyle = '#ffffff';
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 鼠标事件
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', drawing);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+
+  // 触摸屏事件 - 完美适配手机/平板
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    startDraw(e.touches[0]);
+  });
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    drawing(e.touches[0]);
+  });
+  canvas.addEventListener('touchend', endDraw);
+  canvas.addEventListener('touchcancel', endDraw);
+}
+
+// ========== 手写签名核心方法 ==========
+function startDraw(e) {
+  isDrawing = true;
+  const { x, y } = getCanvasPos(e);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+}
+
+function drawing(e) {
+  if (!isDrawing) return;
+  const { x, y } = getCanvasPos(e);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+}
+
+function endDraw() {
+  isDrawing = false;
+  ctx.closePath();
+}
+
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+}
+
+// ========== 生成签名泡泡 ==========
+// ========== 生成签名泡泡 ✅ 核心优化：固定尺寸 + 签名完整显示 + 初始防重叠 ==========
+createBtn.addEventListener('click', () => {
+  const signatureImg = canvas.toDataURL('image/png');
+  const emptyCanvasData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=';
+  if(signatureImg === emptyCanvasData) {
+    alert('请先手写签名再生成泡泡哦～');
+    return;
+  }
+
+  // ✅ 核心1：泡泡大小【完全固定】，取消随机值，统一尺寸 160px，和CSS对应
+  const bubbleSize = 100;
+  // ===== 保留优化：生成时就避开已有泡泡，彻底防重叠 =====
+  let bubbleX, bubbleY;
+  let isOverlap = true;
+  while (isOverlap) {
+    bubbleX = Math.floor(Math.random() * (window.innerWidth - bubbleSize - 320));
+    bubbleY = Math.floor(Math.random() * (window.innerHeight - bubbleSize));
+    isOverlap = false;
+    for (const b of bubbles) {
+      const dx = (bubbleX + bubbleSize/2) - (b.x + b.width/2);
+      const dy = (bubbleY + bubbleSize/2) - (b.y + b.height/2);
+      const distance = Math.sqrt(dx*dx + dy*dy);
+      if (distance < (bubbleSize + b.width)/2 - 10) {
+        isOverlap = true;
+        break;
+      }
+    }
+  }
+
+  const bubble = {
+    id: bubbleId++,
+    x: bubbleX,
+    y: bubbleY,
+    width: bubbleSize,
+    height: bubbleSize,
+    vx: (Math.random() - 0.5) * 2.2, // 最佳顺滑速度，不变
+    vy: (Math.random() - 0.5) * 2.2,
+    imgSrc: signatureImg
+  };
+
+  const bubbleDom = document.createElement('div');
+  bubbleDom.className = 'bubble';
+  bubbleDom.id = `bubble-${bubble.id}`;
+  bubbleDom.style.left = `${bubble.x}px`;
+  bubbleDom.style.top = `${bubble.y}px`;
+  // ✅ 核心2：签名【完整显示核心代码】 无裁切、不变形、完整囊括所有签名内容
+  bubbleDom.innerHTML = `<img src="${signatureImg}" style="width:100%;height:100%;border-radius:50%;object-fit:contain;background:transparent;padding:10px;filter: drop-shadow(0 0 3px #000) brightness(1.3);">`;
+  bubbleContainer.appendChild(bubbleDom);
+
+  bubbles.push({ ...bubble, dom: bubbleDom });
+  clearCanvas();
+});
+// ========== 清空画布 ==========
+clearBtn.addEventListener('click', clearCanvas);
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// ========== 泡泡运动+碰撞检测 ==========
+// ========== 优化版：泡泡运动+碰撞检测【彻底解决重叠/粘连问题】核心修复 ==========
+// ========== 泡泡运动+碰撞检测 ✅ 终极优化版：彻底解决重叠/粘连+固定尺寸适配 ==========
+function bubbleMove() {
+  const winW = window.innerWidth;
+  const winH = window.innerHeight;
+  const damping = 0.88; // 黄金阻尼值，碰撞回弹丝滑不粘连
+  const drawArea = document.getElementById('drawArea');
+  const drawRect = drawArea.getBoundingClientRect(); // 获取签名框的位置和尺寸
+
+  bubbles.forEach((bubble, index) => {
+    bubble.x += bubble.vx;
+    bubble.y += bubble.vy;
+
+    let rightLimit = 0; // 默认左侧可以贴边（0px）
+    // 只有当泡泡的垂直位置和签名框重叠时，才避开签名框的宽度
+    if (!(bubble.y + bubble.height < drawRect.top || bubble.y > drawRect.bottom)) {
+      rightLimit = drawRect.left + 10; // 签名框右侧+10px，避免遮挡签名
+    }
+
+
+    // 边界碰撞回弹+阻尼+强制限位，避开左侧签名框
+    if (bubble.x <= 0 || bubble.x + bubble.width >= winW) {
+      bubble.vx = -bubble.vx * damping;
+      bubble.x = Math.max(0, Math.min(bubble.x, winW - bubble.width));
+    }
+   /* if (bubble.y <= rightLimit || bubble.y + bubble.height >= winH) {
+      bubble.vy = -bubble.vy * damping;
+      bubble.y = Math.max(rightLimit, Math.min(bubble.y, winH - bubble.height));
+    }*/
+    if (bubble.y <= rightLimit || bubble.y + bubble.height >= winH) {
+      bubble.vy = -bubble.vy * damping;
+      bubble.y = Math.max(rightLimit, Math.min(bubble.y, winH - bubble.height));
+    }
+
+    bubble.dom.style.left = `${bubble.x}px`;
+    bubble.dom.style.top = `${bubble.y}px`;
+
+    // 泡泡之间精准碰撞+速度交换+分离补偿，彻底杜绝重叠
+    for (let i = index + 1; i < bubbles.length; i++) {
+      const other = bubbles[i];
+      const bubbleCenterX = bubble.x + bubble.width / 2;
+      const bubbleCenterY = bubble.y + bubble.height / 2;
+      const otherCenterX = other.x + other.width / 2;
+      const otherCenterY = other.y + other.height / 2;
+
+      const dx = bubbleCenterX - otherCenterX;
+      const dy = bubbleCenterY - otherCenterY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const minDistance = (bubble.width + other.width) / 2 - 2;
+
+      if (distance < minDistance) {
+        [bubble.vx, other.vx] = [other.vx * damping, bubble.vx * damping];
+        [bubble.vy, other.vy] = [other.vy * damping, bubble.vy * damping];
+
+        // 核心分离补偿，重叠必推开
+        const overlap = minDistance - distance;
+        const pushX = (dx / distance) * overlap;
+        const pushY = (dy / distance) * overlap;
+        bubble.x += pushX / 2;
+        bubble.y += pushY / 2;
+        other.x -= pushX / 2;
+        other.y -= pushY / 2;
+      }
+    }
+  });
+  requestAnimationFrame(bubbleMove);
+}
+// ========== 窗口自适应 ==========
+window.addEventListener('resize', () => {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+});
+
+// ========== 初始化 ==========
+initCanvas();
+bubbleMove();
+</script>
+</body>
+</html>
