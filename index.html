@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>智慧银行 动态签名泡泡墙</title>
+  <title>中国银行集约运营中心（湖北）2026年秋季招聘签约</title>
   <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body, html {
           width: 100vw; height: 100vh;
           overflow: hidden; /* 隐藏滚动条，纯全屏 */
           font-family: "微软雅黑", sans-serif;
-          background: url(back.png) no-repeat center center fixed;
+          background: url(back.jpg) no-repeat center center fixed;
           background-size: cover;
           background-color: #001a33;
           /* ✅ 核心新增：智慧银行+高科技风格 全屏动态背景 */
@@ -169,6 +169,11 @@ function startDraw(e) {
   const { x, y } = getCanvasPos(e);
   ctx.beginPath();
   ctx.moveTo(x, y);
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#ffffff'; // 科技白笔迹 更醒目
+  ctx.fillStyle = '#ffffff';
 }
 
 function drawing(e) {
@@ -176,6 +181,11 @@ function drawing(e) {
   const { x, y } = getCanvasPos(e);
   ctx.lineTo(x, y);
   ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#ffffff'; // 科技白笔迹 更醒目
+  ctx.fillStyle = '#ffffff';
 }
 
 function endDraw() {
@@ -204,17 +214,31 @@ createBtn.addEventListener('click', () => {
   // ✅ 核心1：泡泡大小【完全固定】，取消随机值，统一尺寸 160px，和CSS对应
   const bubbleSize = 100;
   // ===== 保留优化：生成时就避开已有泡泡，彻底防重叠 =====
+  // ===== 优化：生成泡泡初始位置 无闪现+全屏随机+避开签名框+防重叠 =====
+  // ===== 生成泡泡初始位置 ✅ 适配右侧签名框+全屏随机+防重叠+无闪现 =====
   let bubbleX, bubbleY;
   let isOverlap = true;
+  const drawArea = document.getElementById('drawArea');
+  const drawRect = drawArea.getBoundingClientRect();
   while (isOverlap) {
-    bubbleX = Math.floor(Math.random() * (window.innerWidth - bubbleSize - 320));
+    // 全屏随机生成坐标，无左右限制
+    bubbleX = Math.floor(Math.random() * (window.innerWidth - bubbleSize));
     bubbleY = Math.floor(Math.random() * (window.innerHeight - bubbleSize));
     isOverlap = false;
+
+    // 生成时就避开右侧签名框，从根源杜绝闪现
+    if (!(bubbleX + bubbleSize < drawRect.left || bubbleX > drawRect.right ||
+      bubbleY + bubbleSize < drawRect.top || bubbleY > drawRect.bottom)) {
+      isOverlap = true;
+      continue;
+    }
+
+    // 避开已有泡泡
     for (const b of bubbles) {
       const dx = (bubbleX + bubbleSize/2) - (b.x + b.width/2);
       const dy = (bubbleY + bubbleSize/2) - (b.y + b.height/2);
       const distance = Math.sqrt(dx*dx + dy*dy);
-      if (distance < (bubbleSize + b.width)/2 - 10) {
+      if (distance < (bubbleSize + b.width)/2 - 15) {
         isOverlap = true;
         break;
       }
@@ -251,44 +275,50 @@ function clearCanvas() {
 }
 
 // ========== 泡泡运动+碰撞检测 ==========
-// ========== 优化版：泡泡运动+碰撞检测【彻底解决重叠/粘连问题】核心修复 ==========
-// ========== 泡泡运动+碰撞检测 ✅ 终极优化版：彻底解决重叠/粘连+固定尺寸适配 ==========
+// ========== 泡泡运动+碰撞检测 ✅ 适配签名框在右侧+永不沉底+全屏柔和飘动+无闪现+防重叠粘连 ==========
 function bubbleMove() {
   const winW = window.innerWidth;
   const winH = window.innerHeight;
-  const damping = 0.88; // 黄金阻尼值，碰撞回弹丝滑不粘连
+  const damping = 0.95; // 柔和阻尼值，回弹无生硬感、无闪现
   const drawArea = document.getElementById('drawArea');
-  const drawRect = drawArea.getBoundingClientRect(); // 获取签名框的位置和尺寸
+  const drawRect = drawArea.getBoundingClientRect(); // 获取【右侧】签名框的位置和尺寸
 
   bubbles.forEach((bubble, index) => {
+    // ✅ 永不沉底核心：添加随机悬浮力，抵消阻尼衰减，泡泡永久全屏飘动，不会堆积底部
+    bubble.vy += (Math.random() - 0.5) * 0.08;
+    // 限制最大速度，避免泡泡越飘越快，保持匀速柔和的飘动节奏
+    bubble.vx = Math.max(-3, Math.min(3, bubble.vx));
+    bubble.vy = Math.max(-3, Math.min(3, bubble.vy));
+
+    // 更新泡泡坐标
     bubble.x += bubble.vx;
     bubble.y += bubble.vy;
 
-    let rightLimit = 0; // 默认左侧可以贴边（0px）
-    // 只有当泡泡的垂直位置和签名框重叠时，才避开签名框的宽度
+    // ✅ 核心适配：智能避开【右侧】的签名框 - 平滑无闪现、无生硬回弹、极致柔和
+    // 只有泡泡的垂直位置和右侧签名框重叠时，才触发避开逻辑
     if (!(bubble.y + bubble.height < drawRect.top || bubble.y > drawRect.bottom)) {
-      rightLimit = drawRect.left + 10; // 签名框右侧+10px，避免遮挡签名
+      const safeRight = drawRect.left - 5; // 签名框左侧预留5px安全距离
+      if (bubble.x + bubble.width > safeRight) {
+        bubble.vx = -Math.abs(bubble.vx) * 0.8; // 只给向左的轻柔推力，不是反向猛弹
+        bubble.x = safeRight - bubble.width - 2; // 微小偏移，避免持续碰撞判定
+      }
     }
 
-
-    // 边界碰撞回弹+阻尼+强制限位，避开左侧签名框
+    // ✅ 全屏边界碰撞回弹 - 上下左右全屏无死角，回弹柔和，无任何闪现/抖动
     if (bubble.x <= 0 || bubble.x + bubble.width >= winW) {
       bubble.vx = -bubble.vx * damping;
       bubble.x = Math.max(0, Math.min(bubble.x, winW - bubble.width));
     }
-   /* if (bubble.y <= rightLimit || bubble.y + bubble.height >= winH) {
+    if (bubble.y <= 0 || bubble.y + bubble.height >= winH) {
       bubble.vy = -bubble.vy * damping;
-      bubble.y = Math.max(rightLimit, Math.min(bubble.y, winH - bubble.height));
-    }*/
-    if (bubble.y <= rightLimit || bubble.y + bubble.height >= winH) {
-      bubble.vy = -bubble.vy * damping;
-      bubble.y = Math.max(rightLimit, Math.min(bubble.y, winH - bubble.height));
+      bubble.y = Math.max(0, Math.min(bubble.y, winH - bubble.height));
     }
 
+    // 更新泡泡DOM的实际位置
     bubble.dom.style.left = `${bubble.x}px`;
     bubble.dom.style.top = `${bubble.y}px`;
 
-    // 泡泡之间精准碰撞+速度交换+分离补偿，彻底杜绝重叠
+    // ✅ 保留最优防重叠逻辑：泡泡之间碰撞自动分离，永不粘连，碰撞回弹同样柔和
     for (let i = index + 1; i < bubbles.length; i++) {
       const other = bubbles[i];
       const bubbleCenterX = bubble.x + bubble.width / 2;
@@ -299,16 +329,17 @@ function bubbleMove() {
       const dx = bubbleCenterX - otherCenterX;
       const dy = bubbleCenterY - otherCenterY;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      const minDistance = (bubble.width + other.width) / 2 - 2;
+      const minDistance = (bubble.width + other.width) / 2 - 3;
 
       if (distance < minDistance) {
+        // 碰撞速度交换+柔和阻尼，无生硬感
         [bubble.vx, other.vx] = [other.vx * damping, bubble.vx * damping];
         [bubble.vy, other.vy] = [other.vy * damping, bubble.vy * damping];
 
-        // 核心分离补偿，重叠必推开
+        // 平滑分离补偿，杜绝重叠+无闪现
         const overlap = minDistance - distance;
-        const pushX = (dx / distance) * overlap;
-        const pushY = (dy / distance) * overlap;
+        const pushX = (dx / distance) * overlap * 0.6;
+        const pushY = (dy / distance) * overlap * 0.6;
         bubble.x += pushX / 2;
         bubble.y += pushY / 2;
         other.x -= pushX / 2;
